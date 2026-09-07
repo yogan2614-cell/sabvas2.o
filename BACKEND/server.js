@@ -1,0 +1,55 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" }
+});
+
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+
+    // User jab join kare
+    socket.on('join-room', (room) => {
+        socket.join(room);
+        console.log(`User joined room: ${room}`);
+    });
+
+    // Call request bhejna doosre user ko
+    socket.on('call-user', (data) => {
+        socket.to(data.toRoom).emit('incoming-call', {
+            offer: data.offer,
+            caller: socket.id
+        });
+    });
+
+    // Call accept hone par answer bhejna
+    socket.on('make-answer', (data) => {
+        socket.to(data.toRoom).emit('call-answered', {
+            answer: data.answer
+        });
+    });
+
+    // ICE candidates exchange karna connection ke liye
+    socket.on('ice-candidate', (data) => {
+        socket.to(data.toRoom).emit('ice-candidate', {
+            candidate: data.candidate
+        });
+    });
+
+    // Call cut ya disconnect karna
+    socket.on('end-call', (data) => {
+        socket.to(data.toRoom).emit('call-ended');
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Signaling server running on port ${PORT}`);
+});
