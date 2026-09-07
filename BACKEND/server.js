@@ -11,35 +11,23 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // User jab join kare
     socket.on('join-room', (room) => {
         socket.join(room);
         console.log(`User joined room: ${room}`);
     });
 
-    // Call request bhejna doosre user ko
     socket.on('call-user', (data) => {
-        socket.to(data.toRoom).emit('incoming-call', {
-            offer: data.offer,
-            caller: socket.id
-        });
+        socket.to(data.toRoom).emit('incoming-call', { offer: data.offer, caller: data.caller });
     });
 
-    // Call accept hone par answer bhejna
     socket.on('make-answer', (data) => {
-        socket.to(data.toRoom).emit('call-answered', {
-            answer: data.answer
-        });
+        socket.to(data.toRoom).emit('call-answered', { answer: data.answer });
     });
 
-    // ICE candidates exchange karna connection ke liye
     socket.on('ice-candidate', (data) => {
-        socket.to(data.toRoom).emit('ice-candidate', {
-            candidate: data.candidate
-        });
+        socket.to(data.toRoom).emit('ice-candidate', { candidate: data.candidate });
     });
 
-    // Call cut ya disconnect karna
     socket.on('end-call', (data) => {
         socket.to(data.toRoom).emit('call-ended');
     });
@@ -49,7 +37,8 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+// Render ke dynamic port ke liye process.env.PORT use karna zuri hai
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Signaling server running on port ${PORT}`);
 });
