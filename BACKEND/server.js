@@ -32,16 +32,19 @@ app.post('/api/ai-chat', async (req, res) => {
         const systemInstruction = "Tum ek bahut samajhdar JEE 2028 Mentor aur Manu & Bhuvi ke sabse acche AI Friend ho. Tum unke JEE ke doubts aasan bhasha mein solve karoge aur life/study stress mein motivate karoge.";
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash', // Model name ko standard aur stable rakha hai
             contents: userMessage,
             config: {
                 systemInstruction: systemInstruction,
             }
         });
 
-        res.json({ reply: response.text });
+        // Safe tareeqe se text extract karna
+        const aiReply = response.text || (response.candidates && response.candidates[0]?.content?.parts[0]?.text) || "Jawab mil gaya, par read nahi ho paya.";
+
+        res.json({ reply: aiReply });
     } catch (error) {
-        console.error("AI Error:", error);
+        console.error("AI Error Details:", error);
         res.status(500).json({ error: "AI se baat karne mein problem aa gayi." });
     }
 });
