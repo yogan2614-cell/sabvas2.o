@@ -1,10 +1,11 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 
-// CORS configuration to allow your Vercel frontend
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -13,15 +14,20 @@ app.use(cors({
 
 app.use(express.json());
 
-// Initialize Google Gemini API using Render Environment Variable
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// Health check route
-app.get('/', (req, res) => {
-    res.json({ status: "WWT JEE Mentor AI Backend is Live! 🚀" });
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
 });
 
-// AI Chat Endpoint for Frontend
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+app.get('/', (req, res) => {
+    res.json({ status: "WWT Backend & Socket Server is Live! 🚀" });
+});
+
 app.post('/api/ai-chat', async (req, res) => {
     try {
         const userMessage = req.body.message;
@@ -29,14 +35,13 @@ app.post('/api/ai-chat', async (req, res) => {
             return res.status(400).json({ error: "Message is required" });
         }
 
-        // Using gemini-1.5-flash with proper system instruction handling
         const model = genAI.getGenerativeModel({ 
             model: 'gemini-1.5-flash',
             systemInstruction: "Tum ek bahut samajhdar JEE 2028 Mentor aur Manu & Bhuvi ke sabse acche AI Friend ho. Tum unke JEE ke doubts aasan bhasha mein solve karoge aur life/study stress mein motivate karoge."
         });
 
         const result = await model.generateContent(userMessage);
-        const response = await result.result;
+        const response = await result.response;
         const text = response.text();
 
         res.json({ reply: text });
@@ -46,7 +51,39 @@ app.post('/api/ai-chat', async (req, res) => {
     }
 });
 
+io.on('connection', (socket) => {
+    console.log('A user connected:', socket.id);
+
+    socket.on('join-room', (room) => {
+        socket.join(room);
+    });
+
+    socket.on('call-user', ({ toRoom, offer, caller }) => {
+        socket.to(toRoom).emit('incoming-call', { offer, caller });
+    });
+
+    socket.on('make-answer', ({ toRoom, answer }) => {
+        socket.to(toRoom).emit('call-answered', { answer });
+    });
+
+    socket.on('ice-candidate', ({ toRoom, candidate }) => {
+        socket.to(toRoom).emit('ice-candidate', { candidate });
+    });
+
+    socket.on('end-call', ({ toRoom }) => {
+        socket.to(toRoom).emit('call-ended');
+    });
+
+    socket.on('typing-status', ({ toRoom, sender }) => {
+        socket.to(toRoom).emit('typing-status', { sender });
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+    });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+server.listen(PORT, () => {
+    console.log(`Server & Socket.io is running on port ${PORT}`);
 });
