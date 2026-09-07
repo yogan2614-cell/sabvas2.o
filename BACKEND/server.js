@@ -1,13 +1,53 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors');
+const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
+
+// CORS Error fix karne ke liye sabhi origins allow kar diye hain
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
+}));
+app.use(express.json());
+
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { origin: "*" }
 });
 
+// --- GOOGLE GEMINI AI INITIALIZATION ---
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// AI Chat API Route (Jise frontend se call kiya jayega)
+app.post('/api/ai-chat', async (req, res) => {
+    try {
+        const userMessage = req.body.message;
+        if (!userMessage) {
+            return res.status(400).json({ error: "Message is required" });
+        }
+
+        const systemInstruction = "Tum ek bahut samajhdar JEE 2028 Mentor aur Manu & Bhuvi ke sabse acche AI Friend ho. Tum unke JEE (Maths, Physics, Chemistry) ke doubts aasan bhasha mein solve karoge aur life/study stress mein unko motivate karoge.";
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: userMessage,
+            config: {
+                systemInstruction: systemInstruction,
+            }
+        });
+
+        res.json({ reply: response.text });
+    } catch (error) {
+        console.error("AI Error:", error);
+        res.status(500).json({ error: "AI se baat karne mein problem aa gayi." });
+    }
+});
+
+// --- SOCKET.IO CALLING SYSTEM ---
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
@@ -37,8 +77,11 @@ io.on('connection', (socket) => {
     });
 });
 
-// Render ke dynamic port ke liye process.env.PORT use karna zuri hai
+// Render ke dynamic port ke liye
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Signaling server running on port ${PORT}`);
+    console.log(`Server & Signaling running on port ${PORT}`);
 });
+```[cite: 2]
+
+Ab इन्हें अपने GitHub पर अलग-अलग पेस्ट करके पुश कर दो, Render खुद-ब-खुद इन्हें अपडेट कर लेगा!
