@@ -1,10 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 
-// CORS enable karo taaki Vercel se request block na ho
+// CORS Enable karo taaki Vercel frontend se request block na ho
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -13,8 +13,8 @@ app.use(cors({
 
 app.use(express.json());
 
-// Gemini AI Setup (Render Environment Variable se key uthayega)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Google Generative AI Setup (Render environment variable se key lega)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Test route
 app.get('/', (req, res) => {
@@ -29,22 +29,19 @@ app.post('/api/ai-chat', async (req, res) => {
             return res.status(400).json({ error: "Message is required" });
         }
 
-        const systemInstruction = "Tum ek bahut samajhdar JEE 2028 Mentor aur Manu & Bhuvi ke sabse acche AI Friend ho. Tum unke JEE ke doubts aasan bhasha mein solve karoge aur life/study stress mein motivate karoge.";
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash', // Model name ko standard aur stable rakha hai
-            contents: userMessage,
-            config: {
-                systemInstruction: systemInstruction,
-            }
+        // System prompt aur model select karna
+        const model = genAI.getGenerativeModel({ 
+            model: 'gemini-1.5-flash',
+            systemInstruction: "Tum ek bahut samajhdar JEE 2028 Mentor aur Manu & Bhuvi ke sabse acche AI Friend ho. Tum unke JEE ke doubts aasan bhasha mein solve karoge aur life/study stress mein motivate karoge."
         });
 
-        // Safe tareeqe se text extract karna
-        const aiReply = response.text || (response.candidates && response.candidates[0]?.content?.parts[0]?.text) || "Jawab mil gaya, par read nahi ho paya.";
+        const result = await model.generateContent(userMessage);
+        const response = await result.response;
+        const text = response.text();
 
-        res.json({ reply: aiReply });
+        res.json({ reply: text });
     } catch (error) {
-        console.error("AI Error Details:", error);
+        console.error("AI Error:", error);
         res.status(500).json({ error: "AI se baat karne mein problem aa gayi." });
     }
 });
