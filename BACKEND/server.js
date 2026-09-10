@@ -1,3 +1,7 @@
+/* ==========================================================
+   WWT BACKEND SERVER - EXPRESS & SOCKET.IO SIGNALING
+   ========================================================== */
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -6,6 +10,9 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 
+/* ==========================================================
+   01. MIDDLEWARES & CORS CONFIGURATION
+   ========================================================== */
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -22,7 +29,10 @@ const io = new Server(server, {
     }
 });
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+/* ==========================================================
+   02. GOOGLE GEMINI AI SETUP
+   ========================================================== */
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 app.get('/', (req, res) => {
     res.json({ status: "WWT Backend & Socket Server is Live! 🚀" });
@@ -33,6 +43,10 @@ app.post('/api/ai-chat', async (req, res) => {
         const userMessage = req.body.message;
         if (!userMessage) {
             return res.status(400).json({ error: "Message is required" });
+        }
+
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: "Gemini API key is not configured on the server." });
         }
 
         const model = genAI.getGenerativeModel({ 
@@ -51,31 +65,39 @@ app.post('/api/ai-chat', async (req, res) => {
     }
 });
 
+/* ==========================================================
+   03. SOCKET.IO REAL-TIME SIGNALING & WEB RTC EVENTS
+   ========================================================== */
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
+
+    // Join private couple room
+    socket.join('wwt-private-room-2028');
 
     socket.on('join-room', (room) => {
         socket.join(room);
     });
 
+    // WebRTC Signaling Handlers
     socket.on('call-user', ({ toRoom, offer, caller }) => {
-        socket.to(toRoom).emit('incoming-call', { offer, caller });
+        socket.to(toRoom || 'wwt-private-room-2028').emit('incoming-call', { offer, caller });
     });
 
     socket.on('make-answer', ({ toRoom, answer }) => {
-        socket.to(toRoom).emit('call-answered', { answer });
+        socket.to(toRoom || 'wwt-private-room-2028').emit('call-answered', { answer });
     });
 
     socket.on('ice-candidate', ({ toRoom, candidate }) => {
-        socket.to(toRoom).emit('ice-candidate', { candidate });
+        socket.to(toRoom || 'wwt-private-room-2028').emit('ice-candidate', { candidate });
     });
 
     socket.on('end-call', ({ toRoom }) => {
-        socket.to(toRoom).emit('call-ended');
+        socket.to(toRoom || 'wwt-private-room-2028').emit('call-ended');
     });
 
+    // Typing Status Broadcast
     socket.on('typing-status', ({ toRoom, sender }) => {
-        socket.to(toRoom).emit('typing-status', { sender });
+        socket.to(toRoom || 'wwt-private-room-2028').emit('typing-status', { sender });
     });
 
     socket.on('disconnect', () => {
@@ -83,6 +105,9 @@ io.on('connection', (socket) => {
     });
 });
 
+/* ==========================================================
+   04. SERVER LISTENER
+   ========================================================== */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server & Socket.io is running on port ${PORT}`);
