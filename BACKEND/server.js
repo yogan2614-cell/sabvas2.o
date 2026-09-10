@@ -1,7 +1,3 @@
-/* ==========================================================
-   WWT BACKEND SERVER - EXPRESS & SOCKET.IO SIGNALING
-   ========================================================== */
-
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -10,9 +6,6 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 
-/* ==========================================================
-   01. MIDDLEWARES & CORS CONFIGURATION
-   ========================================================== */
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -29,9 +22,6 @@ const io = new Server(server, {
     }
 });
 
-/* ==========================================================
-   02. GOOGLE GEMINI AI SETUP
-   ========================================================== */
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 app.get('/', (req, res) => {
@@ -65,20 +55,14 @@ app.post('/api/ai-chat', async (req, res) => {
     }
 });
 
-/* ==========================================================
-   03. SOCKET.IO REAL-TIME SIGNALING & WEB RTC EVENTS
-   ========================================================== */
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
-
-    // Join private couple room
     socket.join('wwt-private-room-2028');
 
     socket.on('join-room', (room) => {
         socket.join(room);
     });
 
-    // WebRTC Signaling Handlers
     socket.on('call-user', ({ toRoom, offer, caller }) => {
         socket.to(toRoom || 'wwt-private-room-2028').emit('incoming-call', { offer, caller });
     });
@@ -95,7 +79,6 @@ io.on('connection', (socket) => {
         socket.to(toRoom || 'wwt-private-room-2028').emit('call-ended');
     });
 
-    // Typing Status Broadcast
     socket.on('typing-status', ({ toRoom, sender }) => {
         socket.to(toRoom || 'wwt-private-room-2028').emit('typing-status', { sender });
     });
@@ -105,9 +88,6 @@ io.on('connection', (socket) => {
     });
 });
 
-/* ==========================================================
-   04. SERVER LISTENER
-   ========================================================== */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server & Socket.io is running on port ${PORT}`);
